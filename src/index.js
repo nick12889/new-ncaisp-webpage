@@ -140,6 +140,27 @@ export default {
               console.error('D1 insert error:', dbErr);
             }
           }
+          +        // Push lead to Twenty CRM if endpoint and API key are configured
+          +        if (env.TWENTY_ENDPOINT && env.TWENTY_API_KEY) {
+          +          try {
+          +            await fetch(env.TWENTY_ENDPOINT, {
+          +              method: 'POST',
+          +              headers: {
+          +                'Content-Type': 'application/json',
+          +                'Authorization': `Bearer ${env.TWENTY_API_KEY}`,
+          +              },
+          +              body: JSON.stringify({
+          +                name: leadData.name,
+          +                email: leadData.email,
+          +                company: leadData.company,
+          +                phone: leadData.phone,
+          +                source: 'NCAI Strategy Partners',
+          +              }),
+          +            });
+          +          } catch (twErr) {
+          +            console.error('Twenty CRM push error:', twErr);
+          +          }
+          +        }
         }
 
         return new Response(JSON.stringify({ reply: replyText, lead_complete: leadComplete, email_sent: emailSent }), {
