@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NCAI Strategy Partners</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+    /* ── Page styles ── */
+    header {
+      background: linear-gradient(135deg, #0f172a, #1e3a5f);
+      color: white;
+      padding: 3rem 1.5rem;
+      text-align: center;
+    }
+    header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    header p { font-size: 1.2rem; opacity: 0.9; }
+    main { max-width: 800px; margin: 2rem auto; padding: 0 1.5rem; }
+    section { margin-bottom: 2.5rem; }
+    h2 { color: #1e3a5f; margin-bottom: 1rem; font-size: 1.5rem; }
+    p { margin-bottom: 0.75rem; }
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+    .service-card {
+      background: white; padding: 1.5rem; border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .service-card h3 { color: #2563eb; margin-bottom: 0.5rem; }
+    footer { text-align: center; padding: 2rem; background: #0f172a; color: #94a3b8; }
+
+    /* ── Chat widget ── */
+    #chat-toggle {
+      position: fixed; bottom: 24px; right: 24px;
+      width: 64px; height: 64px; border-radius: 50%;
+      background: #2563eb; color: white; border: none;
+      font-size: 28px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.4);
+      z-index: 9999; transition: transform 0.2s;
+    }
+    #chat-toggle:hover { transform: scale(1.05); }
+
+    #chat-window {
+      position: fixed; bottom: 100px; right: 24px;
+      width: 380px; max-width: calc(100vw - 48px);
+      height: 520px; max-height: calc(100vh - 120px);
+      background: white; border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      display: none; flex-direction: column; z-index: 9999;
+    }
+    #chat-window.open { display: flex; }
+    .chat-header {
+      background: #2563eb; color: white;
+      padding: 1rem 1.25rem; border-radius: 16px 16px 0 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .chat-header h3 { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+    .chat-header .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); display: flex;
+      align-items: center; justify-content: center; font-size: 18px;
+    }
+    .chat-header .close-btn {
+      background: none; border: none; color: white;
+      font-size: 20px; cursor: pointer; padding: 0;
+    }
+    #chat-messages {
+      flex: 1; overflow-y: auto; padding: 1rem;
+      display: flex; flex-direction: column; gap: 0.75rem;
+    }
+    .message {
+      max-width: 80%; padding: 0.75rem 1rem;
+      border-radius: 12px; font-size: 0.9rem; line-height: 1.5;
+    }
+    .message.assistant {
+      background: #f1f5f9; align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .message.user {
+      background: #2563eb; color: white; align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .message.typing { color: #94a3b8; font-style: italic; }
+    .chat-input-area {
+      padding: 0.75rem; border-top: 1px solid #e2e8f0;
+      display: flex; gap: 0.5rem;
+    }
+    #chat-input {
+      flex: 1; padding: 0.625rem 0.875rem;
+      border: 1px solid #cbd5e1; border-radius: 8px;
+      font-size: 0.9rem; outline: none;
+    }
+    #chat-input:focus { border-color: #2563eb; }
+    #send-btn {
+      background: #2563eb; color: white; border: none;
+      padding: 0.625rem 1.25rem; border-radius: 8px;
+      cursor: pointer; font-size: 0.9rem; font-weight: 500;
+    }
+    #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #end-chat-btn {
+      background: none; border: 1px solid #e2e8f0; color: #64748b;
+      padding: 0.5rem; border-radius: 8px; cursor: pointer;
+      font-size: 0.8rem; margin-top: 0.5rem; width: 100%;
+    }
+    #end-chat-btn:hover { background: #f8fafc; }
+    .typing-indicator {
+      display: flex; gap: 4px; padding: 0.5rem 0;
+    }
+    .typing-indicator span {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #94a3b8; animation: bounce 1.4s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-8px); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>NCAI Strategy Partners</h1>
+  <p>AI Strategy · Digital Transformation · Technology Advisory</p>
+</header>
+
+<main>
+  <section>
+    <h2>About Us</h2>
+    <p>NCAI Strategy Partners is a consulting firm specializing in AI strategy, digital transformation, and technology advisory services. We help organizations harness artificial intelligence to drive growth, efficiency, and innovation.</p>
+  </section>
+
+  <section>
+    <h2>Our Services</h2>
+    <div class="services-grid">
+      <div class="service-card">
+        <h3>AI Strategy Consulting</h3>
+        <p>Define a clear AI roadmap aligned with your business goals.</p>
+      </div>
+      <div class="service-card">
+        <h3>Digital Transformation</h3>
+        <p>End-to-end guidance on modernizing your technology stack and processes.</p>
+      </div>
+      <div class="service-card">
+        <h3>Technology Advisory</h3>
+        <p>Expert advice on selecting and implementing the right AI tools and platforms.</p>
+      </div>
+      <div class="service-card">
+        <h3>AI Implementation</h3>
+        <p>Hands-on support for deploying AI solutions in your organization.</p>
+      </div>
+      <div class="service-card">
+        <h3>Training & Workshops</h3>
+        <p>Customized AI literacy and upskilling programs for your teams.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Contact</h2>
+    <p>Email: info@ncaistrategypartners.com</p>
+    <p>Phone: +1 (555) 123-4567</p>
+  </section>
+</main>
+
+<footer>
+  <p>&copy; 2026 NCAI Strategy Partners. All rights reserved.</p>
+</footer>
+
+<!-- ── Aileen Chat Widget ── -->
+<button id="chat-toggle" aria-label="Chat with Aileen">💬</button>
+
+<div id="chat-window">
+  <div class="chat-header">
+    <h3><span class="avatar">👩</span> Aileen</h3>
+    <button class="close-btn" onclick="toggleChat()">&times;</button>
+  </div>
+  <div id="chat-messages"></div>
+  <div class="chat-input-area">
+    <input type="text" id="chat-input" placeholder="Type your message..." onkeypress="if(event.key==='Enter')sendMessage()" />
+    <button id="send-btn" onclick="sendMessage()">Send</button>
+  </div>
+  <div style="padding: 0 0.75rem 0.75rem;">
+    <button id="end-chat-btn" onclick="endChat()">End Conversation</button>
+  </div>
+</div>
+
+<script>
+  // ── Chat state ──
+  let messages = [];
+  let chatEnded = false;
+
+  // ── Toggle chat window ──
+  function toggleChat() {
+    const win = document.getElementById('chat-window');
+    win.classList.toggle('open');
+    if (win.classList.contains('open') && messages.length === 0) {
+      initChat();
+    }
+  }
+  document.getElementById('chat-toggle').addEventListener('click', toggleChat);
+
+  // ── Initialize with Aileen's greeting ──
+  async function initChat() {
+    addTypingIndicator();
+    const reply = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [] }),
+    }).then(r => r.json());
+    removeTypingIndicator();
+    addMessage('assistant', reply.reply);
+  }
+
+  // ── Send message ──
+  async function sendMessage() {
+    if (chatEnded) return;
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMessage('user', text);
+    messages.push({ role: 'user', content: text });
+    input.value = '';
+    document.getElementById('send-btn').disabled = true;
+
+    addTypingIndicator();
+
+    try {
+      const reply = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      }).then(r => r.json());
+
+      removeTypingIndicator();
+      addMessage('assistant', reply.reply);
+      messages.push({ role: 'assistant', content: reply.reply });
+    } catch (err) {
+      removeTypingIndicator();
+      addMessage('assistant', 'I apologize, something went wrong. Please try again.');
+    }
+
+    document.getElementById('send-btn').disabled = false;
+    input.focus();
+  }
+
+  // ── End conversation and save lead ──
+  async function endChat() {
+    if (messages.length === 0) return;
+
+    addMessage('assistant', 'Thank you for chatting with me! A member of our team will follow up with you if needed. Have a great day! 👋');
+    messages.push({ role: 'assistant', content: 'Thank you for chatting with me! A member of our team will follow up with you if needed. Have a great day! 👋' });
+    chatEnded = true;
+
+    // Save conversation summary as a lead
+    try {
+      await fetch('/api/save-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+    } catch (err) {
+      console.error('Failed to save lead:', err);
+    }
+  }
+
+  // ── UI helpers ──
+  function addMessage(role, text) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    div.textContent = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function addTypingIndicator() {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.id = 'typing-indicator';
+    div.className = 'message assistant';
+    div.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+</script>
+
+</body>
+</html>

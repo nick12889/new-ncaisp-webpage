@@ -1,0 +1,17 @@
+{
+  "name": "new-ncaisp-webpage",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "ai": { "binding": "AI" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ncaisp-leads",
+      "database_id": "4c6d0be7-adfd-4452-b390-af3845e14ec1"
+    }
+  ],
+  "assets": {
+    "directory": "./public"
+  }
+}
