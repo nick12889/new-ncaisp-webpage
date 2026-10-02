@@ -83,8 +83,11 @@ export default {
       try {
         const { messages } = await request.json();
         // Load website content (bundled static file)
-        const pageResp = await env.ASSETS.fetch('index.html');
-        const pageHtml = await pageResp.text();
+        let pageHtml = '<html><body><h1>NCAI Strategy Partners</h1></body></html>'; // fallback
+        if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
+          const pageResp = await env.ASSETS.fetch('index.html');
+          pageHtml = await pageResp.text();
+        }
         const siteText = extractTextFromHTML(pageHtml).slice(0, 3000);
 
         const systemPrompt = `${assistantGuidance}\n\n## WEBSITE CONTENT (use ONLY this information)\n${siteText}`;
