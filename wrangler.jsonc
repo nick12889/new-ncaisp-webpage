@@ -1,7 +1,7 @@
  {
   "name": "new-ncaisp-webpage",
   "main": "index.js",
-  "compatibility_date": "2026-10-01",
+  "compatibility_date": "2025-07-18",
   "compatibility_flags": ["nodejs_compat"],
   "ai": { "binding": "AI" },
   "d1_databases": [
@@ -22,8 +22,5 @@
   ],
   "vars": {
     "LEADS_API_KEY": "PLACEHOLDER_LEADS_KEY"
-  },
-  "email": {
-    "binding": "EMAIL"
   }
 }
