@@ -13,5 +13,17 @@
   ],
   "assets": {
     "directory": "./public"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "LEADS",
+      "id": "PLACEHOLDER_KV_ID"
+    }
+  ],
+  "vars": {
+    "LEADS_API_KEY": "PLACEHOLDER_LEADS_KEY"
+  },
+  "email": {
+    "binding": "EMAIL"
   }
 }
