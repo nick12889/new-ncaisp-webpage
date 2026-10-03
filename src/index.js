@@ -293,60 +293,79 @@ async function handleChat(request, env) {
   return json({ reply, needs_followup: unsure, lead_complete: !!(lead.name && lead.email && lead.phone) });
 }
 
-async function handleEndChat(request, env) {
+// Runs after the HTTP response is sent (ctx.waitUntil) so a closing browser tab cannot cut it off.
+async function processLead(env, sessionId, messages) {
+  try {
+    const lead = await extractLead(env, messages);
+    const transcript = transcriptOf(messages);
+    const unanswered = unansweredQuestions(messages);
+
+    let summary = transcript;
+    try {
+      const s = await runAI(env, [
+        {
+          role: 'system',
+          content:
+            'Summarize this website chat in 4-6 short bullet points (plain text, "- " bullets): what the visitor wants, ' +
+            'their business, and any next steps. Use only facts from the chat.',
+        },
+        { role: 'user', content: transcript },
+      ], { max_tokens: 350 });
+      if (s.trim()) summary = s.trim();
+    } catch (e) {
+      console.error('Summary failed:', e);
+    }
+
+    const mail = await sendEmails(env, lead, summary, unanswered, transcript);
+    const crm = await pushToTwenty(env, lead, summary, unanswered);
+
+    await env.DB.prepare(
+      `UPDATE lead_submissions SET name=?, email=?, phone=?, company=?, summary=?, unanswered=?, transcript=?, email_status=?, crm_status=? WHERE session_id=?`
+    ).bind(
+      lead.name, lead.email, lead.phone, lead.company, summary, JSON.stringify(unanswered), transcript,
+      `owner:${mail.owner} guest:${mail.guest}`, crm, sessionId
+    ).run();
+  } catch (e) {
+    console.error('processLead failed:', e);
+    try {
+      await env.DB.prepare('UPDATE lead_submissions SET email_status=? WHERE session_id=?')
+        .bind(`error: ${String(e.message || e).slice(0, 200)}`, sessionId).run();
+    } catch (_) { /* nothing more to do */ }
+  }
+}
+
+async function handleEndChat(request, env, ctx) {
   const body = await request.json();
   const sessionId = typeof body.session_id === 'string' ? body.session_id.slice(0, 64) : null;
   const messages = cleanMessages(body.messages);
   if (!sessionId || !messages.some((m) => m.role === 'user')) return json({ ok: false, reason: 'nothing to save' });
 
   await ensureTable(env);
-  // Claim the session first so a double submit (button + page close) is processed once.
+  // Claim the session (and keep the transcript right away so nothing is lost) so a double submit is processed once.
+  const now = new Date().toISOString();
   const claim = await env.DB.prepare(
-    'INSERT OR IGNORE INTO lead_submissions (session_id, created_at) VALUES (?, ?)'
-  ).bind(sessionId, new Date().toISOString()).run();
-  if (!claim.meta?.changes) return json({ ok: true, duplicate: true });
-
-  const lead = await extractLead(env, messages);
-  const transcript = transcriptOf(messages);
-  const unanswered = unansweredQuestions(messages);
-
-  let summary = transcript;
-  try {
-    const s = await runAI(env, [
-      {
-        role: 'system',
-        content:
-          'Summarize this website chat in 4-6 short bullet points (plain text, "- " bullets): what the visitor wants, ' +
-          'their business, and any next steps. Use only facts from the chat.',
-      },
-      { role: 'user', content: transcript },
-    ], { max_tokens: 350 });
-    if (s.trim()) summary = s.trim();
-  } catch (e) {
-    console.error('Summary failed:', e);
+    'INSERT OR IGNORE INTO lead_submissions (session_id, transcript, created_at) VALUES (?, ?, ?)'
+  ).bind(sessionId, transcriptOf(messages), now).run();
+  if (!claim.meta?.changes) {
+    // A previous attempt that never finished (no status after 2 minutes) may be retried.
+    const retry = await env.DB.prepare(
+      "UPDATE lead_submissions SET created_at=?, transcript=? WHERE session_id=? AND email_status IS NULL AND created_at < ?"
+    ).bind(now, transcriptOf(messages), sessionId, new Date(Date.now() - 2 * 60 * 1000).toISOString()).run();
+    if (!retry.meta?.changes) return json({ ok: true, duplicate: true });
   }
 
-  const mail = await sendEmails(env, lead, summary, unanswered, transcript);
-  const crm = await pushToTwenty(env, lead, summary, unanswered);
-
-  await env.DB.prepare(
-    `UPDATE lead_submissions SET name=?, email=?, phone=?, company=?, summary=?, unanswered=?, transcript=?, email_status=?, crm_status=? WHERE session_id=?`
-  ).bind(
-    lead.name, lead.email, lead.phone, lead.company, summary, JSON.stringify(unanswered), transcript,
-    `owner:${mail.owner} guest:${mail.guest}`, crm, sessionId
-  ).run();
-
-  return json({ ok: true, lead_captured: !!lead.email, email_sent: mail.owner });
+  ctx.waitUntil(processLead(env, sessionId, messages));
+  return json({ ok: true, queued: true });
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     try {
       if (url.pathname === '/api/chat/status' && request.method === 'GET') return json({ ready: !!env.AI });
       if (url.pathname === '/api/chat' && request.method === 'POST') return await handleChat(request, env);
-      if (url.pathname === '/api/end-chat' && request.method === 'POST') return await handleEndChat(request, env);
+      if (url.pathname === '/api/end-chat' && request.method === 'POST') return await handleEndChat(request, env, ctx);
 
       if (url.pathname === '/api/leads' && request.method === 'GET') {
         if (!env.LEADS_API_KEY || request.headers.get('X-Leads-Key') !== env.LEADS_API_KEY) {
