@@ -1,9 +1,8 @@
- {
+{
   "name": "new-ncaisp-webpage",
   "main": "src/index.js",
   "compatibility_date": "2025-07-18",
   "compatibility_flags": ["nodejs_compat"],
-  "account_id": "PLACEHOLDER_ACCOUNT_ID",
   "workers_dev": true,
   "ai": { "binding": "AI" },
   "d1_databases": [
@@ -14,17 +13,7 @@
     }
   ],
   "assets": {
-    "directory": "./public"
-  },
-  "kv_namespaces": [
-    {
-      "binding": "LEADS",
-      "id": "PLACEHOLDER_KV_ID"
-    }
-  ],
-  "vars": {
-    "LEADS_API_KEY": "PLACEHOLDER_LEADS_KEY",
-    "TWENTY_API_KEY": "PLACEHOLDER_TWENTY_API_KEY",
-    "TWENTY_ENDPOINT": "PLACEHOLDER_TWENTY_ENDPOINT"
+    "directory": "./public",
+    "binding": "ASSETS"
   }
 }
