@@ -344,6 +344,7 @@ export default {
     const url = new URL(request.url);
 
     try {
+      if (url.pathname === '/api/chat/status' && request.method === 'GET') return json({ ready: !!env.AI });
       if (url.pathname === '/api/chat' && request.method === 'POST') return await handleChat(request, env);
       if (url.pathname === '/api/end-chat' && request.method === 'POST') return await handleEndChat(request, env);
 
