@@ -144,10 +144,11 @@ ${siteText}`;
 }
 
 // ---------- Email (Resend) ----------
+// Returns true on success, otherwise a short error string (stored with the lead so failures are visible).
 async function sendEmail(env, { to, subject, html, replyTo }) {
   if (!env.RESEND_API_KEY) {
     console.error('RESEND_API_KEY not set');
-    return false;
+    return 'no RESEND_API_KEY';
   }
   try {
     const r = await fetch('https://api.resend.com/emails', {
@@ -155,11 +156,13 @@ async function sendEmail(env, { to, subject, html, replyTo }) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.RESEND_API_KEY}` },
       body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
-    if (!r.ok) console.error('Resend error', r.status, await r.text());
-    return r.ok;
+    if (r.ok) return true;
+    const text = await r.text();
+    console.error('Resend error', r.status, text);
+    return `resend ${r.status}: ${text.replace(/\s+/g, ' ').slice(0, 160)}`;
   } catch (e) {
     console.error('Resend failed:', e);
-    return false;
+    return `fetch failed: ${String(e.message || e).slice(0, 100)}`;
   }
 }
 
@@ -323,7 +326,7 @@ async function processLead(env, sessionId, messages) {
       `UPDATE lead_submissions SET name=?, email=?, phone=?, company=?, summary=?, unanswered=?, transcript=?, email_status=?, crm_status=? WHERE session_id=?`
     ).bind(
       lead.name, lead.email, lead.phone, lead.company, summary, JSON.stringify(unanswered), transcript,
-      `owner:${mail.owner} guest:${mail.guest}`, crm, sessionId
+      `owner:${mail.owner === true ? 'ok' : mail.owner} | guest:${mail.guest === true ? 'ok' : mail.guest}`, crm, sessionId
     ).run();
   } catch (e) {
     console.error('processLead failed:', e);
