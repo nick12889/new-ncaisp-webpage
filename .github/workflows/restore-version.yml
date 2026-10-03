@@ -1,0 +1,70 @@
+name: Restore Cloudflare version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_prefix:
+        description: First characters of the Cloudflare version ID to restore (from its preview URL)
+        required: true
+        default: e4b6d907
+      preview_url:
+        description: Preview URL of that version
+        required: true
+        default: https://e4b6d907-new-ncaisp-webpage.nishant120889-778.workers.dev/
+      do_rollback:
+        description: Roll the live Worker back to that version
+        required: true
+        default: 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+
+      - name: Save the correct page's files into recovered-site/
+        run: |
+          set -e
+          base="${{ inputs.preview_url }}"
+          mkdir -p recovered-site
+          curl -fsSL "$base" -o recovered-site/index.html
+          # download relative assets referenced by the page
+          grep -oE '(src|href)="[^"#?]+"' recovered-site/index.html | sed -E 's/^(src|href)="//; s/"$//' \
+            | grep -vE '^(https?:|//|data:|mailto:|tel:)' | sort -u | while read -r f; do
+              f="${f#/}"
+              mkdir -p "recovered-site/$(dirname "$f")"
+              curl -fsSL "${base%/}/$f" -o "recovered-site/$f" || echo "skip $f"
+            done
+          ls -R recovered-site
+
+      - name: Commit recovered files to a branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git checkout -b recovered-site
+          git add recovered-site
+          git commit -m "Save correct live page (version ${{ inputs.version_prefix }}) into the repo"
+          git push -f origin recovered-site
+
+      - name: Find full version ID
+        id: ver
+        run: |
+          npx wrangler versions list --json > versions.json
+          id=$(node -e "const v=JSON.parse(require('fs').readFileSync('versions.json','utf8'));const m=v.find(x=>x.id.startsWith('${{ inputs.version_prefix }}'));if(!m){console.error('not found');process.exit(1)}console.log(m.id)")
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "Version: $id"
+
+      - name: Roll back
+        if: ${{ inputs.do_rollback == 'true' }}
+        run: npx wrangler rollback "${{ steps.ver.outputs.id }}" --message "Restore correct page" -y

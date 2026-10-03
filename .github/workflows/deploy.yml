@@ -1,8 +1,7 @@
 name: Deploy to Cloudflare
 
 on:
-  push:
-    branches: [main]
+  # Auto-deploy paused until the live site's page is saved in the repo.
   workflow_dispatch:
 
 concurrency:
