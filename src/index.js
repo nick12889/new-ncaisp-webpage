@@ -2,7 +2,7 @@
 // Chat + TTS: Workers AI | Email: Resend | CRM: Twenty (self-hosted, REST) | Storage: D1
 
 const OWNER_EMAIL = 'nishant.chaudhary@ncaistrategypartners.com';
-const FROM_EMAIL = 'NCAI Strategy Partners <hello@ncaistrategypartners.com>';
+const FROM_EMAIL = 'NCAI Strategy Partners <hello@updates.ncaistrategypartners.com>';
 const CHAT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
 const GREETING =
