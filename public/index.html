@@ -107,6 +107,13 @@
       font-size: 0.8rem; margin-top: 0.5rem; width: 100%;
     }
     #end-chat-btn:hover { background: #f8fafc; }
+    #mic-btn, #speak-btn {
+      background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px;
+      width: 40px; cursor: pointer; font-size: 1rem;
+    }
+    #mic-btn.listening { background: #dc2626; border-color: #dc2626; animation: pulse 1.2s infinite; }
+    #speak-btn.on { background: #dbeafe; border-color: #2563eb; }
+    @keyframes pulse { 50% { opacity: 0.6; } }
     .typing-indicator {
       display: flex; gap: 4px; padding: 0.5rem 0;
     }
@@ -182,7 +189,9 @@
   </div>
   <div id="chat-messages"></div>
   <div class="chat-input-area">
-    <input type="text" id="chat-input" placeholder="Type your message..." onkeypress="if(event.key==='Enter')sendMessage()" />
+    <input type="text" id="chat-input" placeholder="Type or tap the mic..." onkeypress="if(event.key==='Enter')sendMessage()" />
+    <button id="mic-btn" onclick="toggleMic()" aria-label="Speak" title="Speak to Aileen">🎤</button>
+    <button id="speak-btn" onclick="toggleSpeak()" aria-label="Voice replies" title="Aileen speaks replies">🔈</button>
     <button id="send-btn" onclick="sendMessage()">Send</button>
   </div>
   <div style="padding: 0 0.75rem 0.75rem;">
@@ -192,55 +201,63 @@
 
 <script>
   // ── Chat state ──
+  const sessionId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
   let messages = [];
   let chatEnded = false;
+  let saved = false;
+  let speakReplies = false;
+  let currentAudio = null;
+
+  async function postChat(payload) {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('chat failed');
+    return res.json();
+  }
 
   // ── Toggle chat window ──
   function toggleChat() {
     const win = document.getElementById('chat-window');
     win.classList.toggle('open');
-    if (win.classList.contains('open') && messages.length === 0) {
-      initChat();
-    }
+    if (win.classList.contains('open') && messages.length === 0) initChat();
   }
   document.getElementById('chat-toggle').addEventListener('click', toggleChat);
 
-  // ── Initialize with Aileen's greeting ──
+  // ── Greeting ──
   async function initChat() {
-    addTypingIndicator();
-    const reply = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [] }),
-    }).then(r => r.json());
-    removeTypingIndicator();
-    addMessage('assistant', reply.reply);
+    try {
+      const reply = await postChat({ messages: [] });
+      addMessage('assistant', reply.reply);
+      messages.push({ role: 'assistant', content: reply.reply });
+      speak(reply.reply);
+    } catch (e) {
+      addMessage('assistant', 'Hi, I am Aileen. May I have your name?');
+    }
   }
 
   // ── Send message ──
-  async function sendMessage() {
+  async function sendMessage(textOverride) {
     if (chatEnded) return;
     const input = document.getElementById('chat-input');
-    const text = input.value.trim();
+    const text = (typeof textOverride === 'string' ? textOverride : input.value).trim();
     if (!text) return;
 
+    stopSpeaking();
     addMessage('user', text);
     messages.push({ role: 'user', content: text });
     input.value = '';
     document.getElementById('send-btn').disabled = true;
-
     addTypingIndicator();
 
     try {
-      const reply = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages }),
-      }).then(r => r.json());
-
+      const reply = await postChat({ messages });
       removeTypingIndicator();
       addMessage('assistant', reply.reply);
       messages.push({ role: 'assistant', content: reply.reply });
+      speak(reply.reply);
     } catch (err) {
       removeTypingIndicator();
       addMessage('assistant', 'I apologize, something went wrong. Please try again.');
@@ -250,23 +267,100 @@
     input.focus();
   }
 
-  // ── End conversation and save lead ──
+  // ── Save lead + send emails + push to CRM (once) ──
+  function saveLead(useBeacon) {
+    if (saved || !messages.some(m => m.role === 'user')) return Promise.resolve();
+    saved = true;
+    const body = JSON.stringify({ session_id: sessionId, messages });
+    if (useBeacon && navigator.sendBeacon) {
+      navigator.sendBeacon('/api/end-chat', new Blob([body], { type: 'application/json' }));
+      return Promise.resolve();
+    }
+    return fetch('/api/end-chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true })
+      .catch(() => { saved = false; });
+  }
+
   async function endChat() {
-    if (messages.length === 0) return;
-
-    addMessage('assistant', 'Thank you for chatting with me! A member of our team will follow up with you if needed. Have a great day! 👋');
-    messages.push({ role: 'assistant', content: 'Thank you for chatting with me! A member of our team will follow up with you if needed. Have a great day! 👋' });
+    if (chatEnded || messages.length === 0) return;
     chatEnded = true;
+    stopSpeaking();
+    stopListening();
+    const bye = 'Thank you for chatting with me! A summary will be emailed to you shortly. Have a great day! 👋';
+    addMessage('assistant', bye);
+    await saveLead(false);
+  }
+  // Visitor closed the tab without ending: still capture the lead.
+  window.addEventListener('pagehide', () => { if (!chatEnded) saveLead(true); });
 
-    // Save conversation summary as a lead
+  // ── Voice: speech to text (browser) ──
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  const micBtn = document.getElementById('mic-btn');
+  if (!SR) { micBtn.style.display = 'none'; }
+
+  function stopListening() {
+    if (recognition) { try { recognition.stop(); } catch (e) {} }
+    micBtn.classList.remove('listening');
+  }
+
+  function toggleMic() {
+    if (!SR || chatEnded) return;
+    if (micBtn.classList.contains('listening')) { stopListening(); return; }
+    stopSpeaking();
+    recognition = new SR();
+    recognition.lang = 'en-US';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    const input = document.getElementById('chat-input');
+    let finalText = '';
+    recognition.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t; else interim += t;
+      }
+      input.value = (finalText + interim).trim();
+    };
+    recognition.onerror = () => micBtn.classList.remove('listening');
+    recognition.onend = () => {
+      micBtn.classList.remove('listening');
+      if (finalText.trim()) {
+        speakReplies = true;
+        document.getElementById('speak-btn').classList.add('on');
+        sendMessage(finalText);
+      }
+    };
+    micBtn.classList.add('listening');
+    recognition.start();
+  }
+
+  // ── Voice: text to speech (Cloudflare, falls back to browser voice) ──
+  function toggleSpeak() {
+    speakReplies = !speakReplies;
+    document.getElementById('speak-btn').classList.toggle('on', speakReplies);
+    if (!speakReplies) stopSpeaking();
+  }
+
+  function stopSpeaking() {
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  async function speak(text) {
+    if (!speakReplies || chatEnded) return;
     try {
-      await fetch('/api/save-lead', {
+      const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ text }),
       });
-    } catch (err) {
-      console.error('Failed to save lead:', err);
+      if (!res.ok) throw new Error('tts failed');
+      const url = URL.createObjectURL(await res.blob());
+      currentAudio = new Audio(url);
+      currentAudio.onended = () => URL.revokeObjectURL(url);
+      await currentAudio.play();
+    } catch (e) {
+      if (window.speechSynthesis) window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
     }
   }
 
