@@ -33,20 +33,57 @@ jobs:
           node-version: 20
       - run: npm ci
 
-      - name: Save the correct page's files into recovered-site/
+      - name: Save the correct site (all pages and assets) into recovered-site/
         run: |
-          set -e
-          base="${{ inputs.preview_url }}"
-          mkdir -p recovered-site
-          curl -fsSL "$base" -o recovered-site/index.html
-          # download relative assets referenced by the page
-          grep -oE '(src|href)="[^"#?]+"' recovered-site/index.html | sed -E 's/^(src|href)="//; s/"$//' \
-            | grep -vE '^(https?:|//|data:|mailto:|tel:)' | sort -u | while read -r f; do
-              f="${f#/}"
-              mkdir -p "recovered-site/$(dirname "$f")"
-              curl -fsSL "${base%/}/$f" -o "recovered-site/$f" || echo "skip $f"
-            done
-          ls -R recovered-site
+          cat > crawl.mjs <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const base = new URL(process.env.BASE);
+          const out = 'recovered-site';
+          const seen = new Set();
+          const queue = ['/'];
+          const exts = /\.(css|js|mjs|json|webp|png|jpe?g|gif|svg|ico|woff2?|ttf|txt|xml|webmanifest|pdf|mp4|webm)$/i;
+          const attr = /(?:src|href|poster|content)=["']([^"'#]+)["']/gi;
+          const cssUrl = /url\(["']?([^"')]+)["']?\)/gi;
+          function local(u, from) {
+            try {
+              const x = new URL(u, new URL(from, base));
+              if (x.origin !== base.origin) return null;
+              return x.pathname;
+            } catch { return null; }
+          }
+          while (queue.length) {
+            const p = queue.shift();
+            if (seen.has(p)) continue;
+            seen.add(p);
+            const r = await fetch(new URL(p, base));
+            if (!r.ok) { console.log('skip', p, r.status); continue; }
+            const type = r.headers.get('content-type') || '';
+            let file = p.endsWith('/') ? p + 'index.html' : p;
+            if (!path.extname(file)) file += '/index.html';
+            const dest = path.join(out, file);
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            const buf = Buffer.from(await r.arrayBuffer());
+            fs.writeFileSync(dest, buf);
+            console.log('saved', p, '->', dest);
+            if (/html|css|javascript/.test(type) || /\.(html|css|js)$/.test(file)) {
+              const text = buf.toString('utf8');
+              for (const re of [attr, cssUrl]) {
+                re.lastIndex = 0;
+                let m;
+                while ((m = re.exec(text))) {
+                  const lp = local(m[1], p);
+                  if (!lp || lp.startsWith('/api/')) continue;
+                  if (lp.endsWith('/') || exts.test(lp)) queue.push(lp);
+                }
+              }
+            }
+          }
+          console.log('total', seen.size);
+          JS
+          BASE="${{ inputs.preview_url }}" node crawl.mjs
+          rm crawl.mjs
+          find recovered-site -type f | sort
 
       - name: Commit recovered files to a branch
         run: |
