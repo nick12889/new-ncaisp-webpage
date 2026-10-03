@@ -56,7 +56,8 @@ const transcriptOf = (messages) =>
 function unansweredQuestions(messages) {
   const out = [];
   messages.forEach((m, i) => {
-    if (m.role === 'assistant' && m.content.includes('A colleague will follow up') && i > 0 && messages[i - 1].role === 'user') {
+    const unsure = /colleague will follow up|not (mentioned|listed|covered|available) (on|in) (our|the) website|don'?t have (that|enough|any) information|not sure about that|unable to (provide|answer)/i;
+    if (m.role === 'assistant' && unsure.test(m.content) && i > 0 && messages[i - 1].role === 'user') {
       out.push(messages[i - 1].content);
     }
   });
@@ -135,7 +136,7 @@ function buildSystemPrompt(lead, siteText) {
 Rules:
 - Answer ONLY from the WEBSITE CONTENT below. Never invent services, prices, timelines or facts.
 - Keep replies short (2-4 sentences), plain text, no markdown.
-- If you are not sure of the answer or it is not in the website content, reply with exactly: ${UNSURE_MARKER}
+- If the answer is not explicitly in the website content, or you are not sure, reply with exactly: ${UNSURE_MARKER} and nothing else. Never say things like "not mentioned on the website".
 - ${leadRule}
 - If the visitor wants a consultation or call, thank them and say a colleague will follow up within 24 business hours.
 
@@ -309,8 +310,9 @@ async function processLead(env, sessionId, messages) {
         {
           role: 'system',
           content:
-            'Summarize this website chat in 4-6 short bullet points (plain text, "- " bullets): what the visitor wants, ' +
-            'their business, and any next steps. Use only facts from the chat.',
+            'Summarize this website chat for a sales follow-up in 3-5 short bullet points (plain text, "- " bullets). ' +
+          'Only state what the VISITOR said or asked, plus any question Aileen could not answer. ' +
+          'Do not guess, infer roles or intentions, or repeat contact details. If something is unknown, leave it out.',
         },
         { role: 'user', content: transcript },
       ], { max_tokens: 350 });
