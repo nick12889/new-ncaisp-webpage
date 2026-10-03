@@ -359,8 +359,8 @@ export default {
       if (url.pathname === '/api/tts' && request.method === 'POST') {
         const { text } = await request.json();
         const audio = await env.AI.run(
-          '@cf/deepgram/aura-2-en',
-          { text: String(text || '').slice(0, 1500), speaker: 'helena', encoding: 'mp3', container: 'none' },
+          '@cf/deepgram/aura-2-fiona-en',
+          { text: String(text || '').slice(0, 1500), speaker: 'brigid', encoding: 'mp3', container: 'none' },
           { returnRawResponse: true }
         );
         return new Response(audio.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
