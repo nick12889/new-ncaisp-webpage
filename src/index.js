@@ -310,8 +310,9 @@ async function processLead(env, sessionId, messages) {
         {
           role: 'system',
           content:
-            'Summarize this website chat in 4-6 short bullet points (plain text, "- " bullets): what the visitor wants, ' +
-            'their business, and any next steps. Use only facts from the chat.',
+            'Summarize this website chat for a sales follow-up in 3-5 short bullet points (plain text, "- " bullets). ' +
+          'Only state what the VISITOR said or asked, plus any question Aileen could not answer. ' +
+          'Do not guess, infer roles or intentions, or repeat contact details. If something is unknown, leave it out.',
         },
         { role: 'user', content: transcript },
       ], { max_tokens: 350 });
