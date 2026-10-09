@@ -35,8 +35,9 @@
  function stopSpeaking(){if(audio){audio.pause();audio=null}}
  async function speak(text){
   if(!speakReplies)return;
-  try{const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});if(!r.ok)throw Error();const url=URL.createObjectURL(await r.blob());audio=new Audio(url);audio.onended=()=>URL.revokeObjectURL(url);await audio.play()}
-  catch{status.textContent='Voice reply unavailable. You can read the answer above.'}
+  let step='request';
+  try{const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});if(!r.ok){let d='';try{d=(await r.json()).detail||''}catch{}throw Error('server '+r.status+(d?': '+d:''))}step='playback';const url=URL.createObjectURL(await r.blob());audio=new Audio(url);audio.onended=()=>URL.revokeObjectURL(url);await audio.play()}
+  catch(e){status.textContent='Voice reply unavailable ('+step+': '+(e&&e.message||e)+'). You can read the answer above.'}
  }
  speaker.addEventListener('click',()=>{speakReplies=!speakReplies;speaker.setAttribute('aria-pressed',String(speakReplies));if(!speakReplies)stopSpeaking()});
  function micOff(){clearTimeout(recTimer);mic&&(mic.classList.remove('listening'),mic.setAttribute('aria-pressed','false'));if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
