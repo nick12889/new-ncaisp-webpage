@@ -393,11 +393,12 @@ export default {
 
       if (url.pathname === '/api/tts' && request.method === 'POST') {
         const { text } = await request.json();
-        const audio = await env.AI.run(
-          '@cf/deepgram/aura-2-fiona-en',
-          { text: String(text || '').slice(0, 1500), speaker: 'brigid', encoding: 'mp3', container: 'none' },
-          { returnRawResponse: true }
-        );
+        const clean = String(text || '').slice(0, 1500);
+        const run = (model, speaker) => env.AI.run(model, { text: clean, speaker, encoding: 'mp3', container: 'none' }, { returnRawResponse: true });
+        let audio;
+        try { audio = await run('@cf/deepgram/aura-2-en', 'thalia'); if (!audio.ok) throw new Error('aura-2 status ' + audio.status); }
+        catch (e) { console.error('aura-2 failed, falling back to aura-1:', e); audio = await run('@cf/deepgram/aura-1', 'asteria'); }
+        if (!audio.ok) return json({ error: 'Voice unavailable.' }, 502);
         return new Response(audio.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
       }
     } catch (err) {
