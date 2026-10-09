@@ -381,6 +381,16 @@ export default {
         return json({ leads: results });
       }
 
+      if (url.pathname === '/api/stt' && request.method === 'POST') {
+        const buf = await request.arrayBuffer();
+        if (!buf.byteLength || buf.byteLength > 5 * 1024 * 1024) return json({ error: 'Audio missing or too long.' }, 400);
+        const bytes = new Uint8Array(buf);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        const out = await env.AI.run('@cf/openai/whisper-large-v3-turbo', { audio: btoa(bin), language: 'en' });
+        return json({ text: String(out?.text || '').trim().slice(0, 1500) });
+      }
+
       if (url.pathname === '/api/tts' && request.method === 'POST') {
         const { text } = await request.json();
         const audio = await env.AI.run(

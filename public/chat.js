@@ -22,34 +22,42 @@
  window.addEventListener('pagehide',()=>finalize(true));
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')finalize(true)});
 
- // ---- Voice: speech to text (browser) and text to speech (Cloudflare, browser fallback) ----
- const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- let speakReplies=false,audio=null,recog=null;
+ // ---- Voice: speech to text and text to speech both run on Cloudflare Workers AI (/api/stt, /api/tts) ----
+ const canRecord=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);
+ let speakReplies=false,audio=null,rec=null,stream=null,recTimer;
  const style=document.createElement('style');
  style.textContent='.chat-voice{border:1px solid currentColor;background:transparent;color:inherit;border-radius:8px;min-width:44px;cursor:pointer;font-size:1rem;opacity:.85}.chat-voice[aria-pressed=true]{background:rgba(127,127,127,.25);opacity:1}.chat-voice.listening{animation:chatPulse 1.2s infinite}@keyframes chatPulse{50%{opacity:.4}}';
  document.head.appendChild(style);
  function voiceBtn(label,text,title){const b=document.createElement('button');b.type='button';b.className='chat-voice';b.setAttribute('aria-label',label);b.setAttribute('aria-pressed','false');b.title=title;b.textContent=text;return b}
- const mic=SR?voiceBtn('Speak to Aileen','🎤','Speak to Aileen'):null;
+ const mic=canRecord?voiceBtn('Speak to Aileen','🎤','Speak to Aileen'):null;
  const speaker=voiceBtn('Aileen speaks replies','🔈','Aileen speaks replies');
  if(row){if(mic)row.insertBefore(mic,send);row.insertBefore(speaker,send)}
- function stopSpeaking(){if(audio){audio.pause();audio=null}if(window.speechSynthesis)speechSynthesis.cancel()}
+ function stopSpeaking(){if(audio){audio.pause();audio=null}}
  async function speak(text){
   if(!speakReplies)return;
   try{const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});if(!r.ok)throw Error();const url=URL.createObjectURL(await r.blob());audio=new Audio(url);audio.onended=()=>URL.revokeObjectURL(url);await audio.play()}
-  catch{if(window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(text))}
+  catch{status.textContent='Voice reply unavailable. You can read the answer above.'}
  }
  speaker.addEventListener('click',()=>{speakReplies=!speakReplies;speaker.setAttribute('aria-pressed',String(speakReplies));if(!speakReplies)stopSpeaking()});
- function stopListening(){if(recog){try{recog.stop()}catch{}}mic&&(mic.classList.remove('listening'),mic.setAttribute('aria-pressed','false'))}
- if(mic)mic.addEventListener('click',()=>{
+ function micOff(){clearTimeout(recTimer);mic&&(mic.classList.remove('listening'),mic.setAttribute('aria-pressed','false'));if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+ function stopListening(){if(rec&&rec.state!=='inactive'){try{rec.stop()}catch{}}else micOff()}
+ if(mic)mic.addEventListener('click',async()=>{
   if(!live||busy)return;
   if(mic.classList.contains('listening')){stopListening();return}
   stopSpeaking();
-  recog=new SR();recog.lang='en-US';recog.interimResults=true;
-  let finalText='';
-  recog.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=t;else interim+=t}input.value=(finalText+interim).trim()};
-  recog.onerror=()=>stopListening();
-  recog.onend=()=>{stopListening();if(finalText.trim()){speakReplies=true;speaker.setAttribute('aria-pressed','true');form.requestSubmit()}};
-  mic.classList.add('listening');mic.setAttribute('aria-pressed','true');recog.start();
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch{status.textContent='Microphone blocked. Allow access or type your question.';return}
+  const chunks=[];rec=new MediaRecorder(stream);
+  rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  rec.onstop=async()=>{
+   const type=rec.mimeType||'audio/webm';micOff();
+   if(!chunks.length)return;
+   status.textContent='Transcribing…';
+   try{const r=await fetch('/api/stt',{method:'POST',headers:{'Content-Type':type},body:new Blob(chunks,{type})});const d=await r.json();if(!r.ok)throw Error();
+    if(d.text){input.value=d.text;speakReplies=true;speaker.setAttribute('aria-pressed','true');form.requestSubmit()}else status.textContent='I did not catch that. Please try again.'}
+   catch{status.textContent='Voice input unavailable. Please type your question.'}
+  };
+  rec.start();recTimer=setTimeout(stopListening,30000);
+  mic.classList.add('listening');mic.setAttribute('aria-pressed','true');status.textContent='Listening… tap the mic again to send.';
  });
 
  // ---- Chat UI ----
