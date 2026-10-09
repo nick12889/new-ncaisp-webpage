@@ -397,8 +397,8 @@ export default {
         const run = (model, speaker) => env.AI.run(model, { text: clean, speaker, encoding: 'mp3', container: 'none' }, { returnRawResponse: true });
         let audio;
         try { audio = await run('@cf/deepgram/aura-2-en', 'thalia'); if (!audio.ok) throw new Error('aura-2 status ' + audio.status); }
-        catch (e) { console.error('aura-2 failed, falling back to aura-1:', e); audio = await run('@cf/deepgram/aura-1', 'asteria'); }
-        if (!audio.ok) return json({ error: 'Voice unavailable.' }, 502);
+        catch (e) { console.error('aura-2 failed, falling back to aura-1:', e); try { audio = await run('@cf/deepgram/aura-1', 'asteria'); } catch (e2) { return json({ error: 'Voice unavailable.', detail: `aura-2: ${String(e.message || e).slice(0, 150)} | aura-1: ${String(e2.message || e2).slice(0, 150)}` }, 502); } }
+        if (!audio.ok) return json({ error: 'Voice unavailable.', detail: `tts ${audio.status}: ${(await audio.text()).slice(0, 200)}` }, 502);
         return new Response(audio.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
       }
     } catch (err) {
