@@ -1,0 +1,40 @@
+# NCAI Strategy Partners
+
+> NCAI Strategy Partners (NCAISP) helps businesses identify where AI creates value, then builds, deploys and operates the systems: AI strategy, process automation, custom AI agents, agentic systems, LLM applications, private/sovereign AI and managed AI services. Registered business name: NC Strategy Ops. Target markets: Ireland, the United Kingdom, the United States and Canada.
+
+Key facts:
+- Founder & CEO: Nishant Chaudhary (https://ncaistrategypartners.com/about/#founder, https://www.linkedin.com/in/chaudharynishantchetan)
+- Contact: hello@ncaistrategypartners.com
+- Book an AI Strategy Session: https://ncaistrategypartners.com/#booking
+- Pricing is scoped to the process, integrations, data and support required. NCAISP does not publish fixed prices or promise guaranteed results.
+- The use cases on this site are illustrative, not completed client projects.
+
+## Capabilities
+- [AI Workflows & Agentic Systems](https://ncaistrategypartners.com/capabilities/agentic-systems/): Coordinate agents, applications, data and human decisions in multi-step business workflows. Start with one process and expand into a connected operating layer.
+- [Custom AI Agents](https://ncaistrategypartners.com/capabilities/ai-agents/): Specialised AI agents that retrieve information, use tools and take permitted actions within a defined scope, with a clear route back to your team.
+- [LLM & Custom AI Applications](https://ncaistrategypartners.com/capabilities/ai-applications/): Purpose-built AI applications using the right language models for your data, quality, latency and cost needs, with RAG and repeatable quality checks.
+- [AI Strategy & Opportunity Discovery](https://ncaistrategypartners.com/capabilities/ai-strategy/): Find where AI creates real business value. We assess your processes, data and systems, then prioritise a practical AI roadmap and first use case.
+- [Intelligent Process Automation](https://ncaistrategypartners.com/capabilities/automation/): Connect the steps that slow your business down. We design automation across applications, teams and decisions, with exceptions and approvals built in.
+- [Managed AI Services](https://ncaistrategypartners.com/capabilities/managed-ai/): Operate and improve your AI systems after launch: monitoring, evaluations, maintenance and optimisation, with service levels agreed for each engagement.
+- [Sovereign / Private AI Systems](https://ncaistrategypartners.com/capabilities/sovereign-ai/): Private and sovereign AI designed around your data, model, permission and infrastructure requirements, verified against the actual architecture.
+
+## Solutions
+- [AI Revenue Capture](https://ncaistrategypartners.com/solutions/ai-revenue-capture/): Turn website visitors into conversations, qualified leads, callbacks and booked appointments.
+- [Customer Service Automation](https://ncaistrategypartners.com/solutions/customer-service/): Connect approved knowledge, service requests and human escalation.
+- [Document Intelligence](https://ncaistrategypartners.com/solutions/document-intelligence/): Turn business documents into structured information and reviewable actions.
+- [Knowledge Systems](https://ncaistrategypartners.com/solutions/knowledge-systems/): Make approved business knowledge accessible in the context of work.
+- [Operations Automation](https://ncaistrategypartners.com/solutions/operations-automation/): Keep work moving across teams, applications and approval points.
+- [Private AI](https://ncaistrategypartners.com/solutions/private-ai/): Choose deployment and knowledge boundaries around your organisation.
+- [Sales Automation](https://ncaistrategypartners.com/solutions/sales-automation/): Reduce the administration between a new enquiry and the next useful action.
+- [Voice AI](https://ncaistrategypartners.com/solutions/voice-ai/): Design useful voice interactions with clear boundaries and human handover.
+- [Workflow Automation](https://ncaistrategypartners.com/solutions/workflow-automation/): Connect repeatable processes across the tools your teams already use.
+
+## Company
+- [Home](https://ncaistrategypartners.com/): NCAI Strategy Partners helps businesses find where AI creates value, then builds, deploys and runs the systems: automation, custom AI agents and private AI.
+- [About NCAISP](https://ncaistrategypartners.com/about/): About NCAI Strategy Partners: one partner from AI opportunity discovery to managed operation, working with organisations in Ireland, the UK, the US and Canada.
+- [Industries](https://ncaistrategypartners.com/industries/): Illustrative AI applications for professional services, legal, healthcare and dental, home services, property and operations-led organisations.
+- [Use cases](https://ncaistrategypartners.com/use-cases/): 30 illustrative AI use cases across 10 business units, each with a business problem, a proposed workflow and clear human oversight.
+- [Insights](https://ncaistrategypartners.com/insights/): Practical guides: how to choose a first AI use case, how automation, AI agents and agentic systems differ, and what private or sovereign AI really means.
+
+## Optional
+- [Privacy](https://ncaistrategypartners.com/privacy/): How the NCAI Strategy Partners website handles the booking calendar, the chat assistant and browser data, and which providers process it.

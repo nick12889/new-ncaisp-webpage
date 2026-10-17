@@ -14,6 +14,9 @@
   ],
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // Run the Worker first so www/http redirects and security headers apply to every page.
+    "run_worker_first": true,
+    "not_found_handling": "404-page"
   }
 }

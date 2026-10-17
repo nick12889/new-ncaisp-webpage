@@ -18,3 +18,9 @@ Bindings (`AI`, `DB`, `ASSETS`) are in `wrangler.jsonc`. The D1 table is created
 
 ## Endpoints
 `POST /api/chat`, `POST /api/end-chat`, `POST /api/tts`, `GET /api/leads` (key required).
+
+## SEO & launch checklist
+- Canonical address is `https://ncaistrategypartners.com`. The Worker 301-redirects `www.` and `http://` there and adds security headers to every response (`run_worker_first` in `wrangler.jsonc`).
+- `public/robots.txt`, `public/sitemap.xml` and `public/llms.txt` are static. Update the sitemap `lastmod` dates and `llms.txt` when pages change.
+- Every page has a canonical link, Open Graph/Twitter tags and JSON-LD (Organization, WebPage, BreadcrumbList, plus Service, FAQPage, Article or Person where relevant).
+- **The site is still in preview:** every page has `<meta name="robots" content="noindex,nofollow">`. At launch, remove that tag from all pages (keep it on `404.html`), update `/privacy/` to describe the live chat, voice, lead capture, email and CRM data flows, then submit the sitemap in Google Search Console and Bing Webmaster Tools.
