@@ -29,6 +29,9 @@ Key facts:
 - [Voice AI](https://ncaistrategypartners.com/solutions/voice-ai/): Design useful voice interactions with clear boundaries and human handover.
 - [Workflow Automation](https://ncaistrategypartners.com/solutions/workflow-automation/): Connect repeatable processes across the tools your teams already use.
 
+## Related
+- [AI Revenue Capture](https://getairevenuecapture.com/): the managed AI receptionist product for practices, professional services and trades in Ireland and the UK, with published plans and pricing.
+
 ## Company
 - [Home](https://ncaistrategypartners.com/): NCAI Strategy Partners helps businesses find where AI creates value, then builds, deploys and runs the systems: automation, custom AI agents and private AI.
 - [About NCAISP](https://ncaistrategypartners.com/about/): About NCAI Strategy Partners: one partner from AI opportunity discovery to managed operation, working with organisations in Ireland, the UK, the US and Canada.
