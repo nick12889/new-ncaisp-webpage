@@ -24,6 +24,7 @@ const PHONE_RE = /\+?\d[\d\s().-]{7,}\d/;
 
 const MAX_MESSAGES = 30;
 const MAX_CHARS = 2000;
+const LEAD_RETENTION_DAYS = 730; // 24 months, as promised on /privacy/
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
@@ -400,6 +401,14 @@ export default {
     const redirect = canonicalRedirect(url, request.method);
     if (redirect) return redirect;
     return withSiteHeaders(await route(request, env, ctx, url), url);
+  },
+
+  // Daily: delete chat leads older than the retention period stated on /privacy/.
+  async scheduled(event, env, ctx) {
+    await ensureTable(env);
+    const cutoff = new Date(Date.now() - LEAD_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const r = await env.DB.prepare('DELETE FROM lead_submissions WHERE created_at < ?').bind(cutoff).run();
+    console.log(`Retention cleanup: deleted ${r.meta?.changes ?? 0} lead(s) created before ${cutoff}`);
   },
 };
 
