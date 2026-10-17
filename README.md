@@ -23,5 +23,5 @@ Bindings (`AI`, `DB`, `ASSETS`) are in `wrangler.jsonc`. The D1 table is created
 - Canonical address is `https://ncaistrategypartners.com`. The Worker 301-redirects `www.` and `http://` there and adds security headers to every response (`run_worker_first` in `wrangler.jsonc`).
 - `public/robots.txt`, `public/sitemap.xml` and `public/llms.txt` are static. Update the sitemap `lastmod` dates and `llms.txt` when pages change.
 - Every page has a canonical link, Open Graph/Twitter tags and JSON-LD (Organization, WebPage, BreadcrumbList, plus Service, FAQPage, Article or Person where relevant).
-- **The site is still in preview:** every page has `<meta name="robots" content="noindex,nofollow">`. At launch, remove that tag from all pages (keep it on `404.html`), then submit the sitemap in Google Search Console and Bing Webmaster Tools.
+- Pages are indexable (`index,follow`); only `404.html` is `noindex`. After launch, submit the sitemap in Google Search Console and Bing Webmaster Tools.
 - `/privacy/` describes the chat, voice, email (Resend), CRM (Twenty), D1 and Cal.com data flows. Update it whenever a provider or data flow changes. A daily cron (`scheduled` in `src/index.js`) deletes D1 leads older than 24 months, matching the notice; CRM and mailbox records must be cleaned on the same schedule by hand.
