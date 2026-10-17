@@ -24,6 +24,7 @@ const PHONE_RE = /\+?\d[\d\s().-]{7,}\d/;
 
 const MAX_MESSAGES = 30;
 const MAX_CHARS = 2000;
+const LEAD_RETENTION_DAYS = 730; // 24 months, as promised on /privacy/
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
@@ -363,49 +364,93 @@ async function handleEndChat(request, env, ctx) {
   return json({ ok: true, queued: true });
 }
 
+const CANONICAL_HOST = 'ncaistrategypartners.com';
+const REDIRECT_HOSTS = new Set(['www.ncaistrategypartners.com']);
+
+const SECURITY_HEADERS = {
+  'Strict-Transport-Security': 'max-age=31536000',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'microphone=(self), camera=(), geolocation=(), payment=()',
+  'Content-Security-Policy': "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests",
+};
+
+// One address per page for search engines: www and http go to https://ncaistrategypartners.com (301).
+function canonicalRedirect(url, method) {
+  const wrongHost = REDIRECT_HOSTS.has(url.hostname);
+  const insecure = url.protocol === 'http:' && (wrongHost || url.hostname === CANONICAL_HOST);
+  if (!wrongHost && !insecure) return null;
+  const target = new URL(url);
+  target.protocol = 'https:';
+  target.hostname = CANONICAL_HOST;
+  return Response.redirect(target.toString(), method === 'GET' || method === 'HEAD' ? 301 : 308);
+}
+
+function withSiteHeaders(response, url) {
+  const res = new Response(response.body, response);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!res.headers.has(k)) res.headers.set(k, v);
+  // The workers.dev copy must never compete with the real domain in search results.
+  if (url.hostname.endsWith('.workers.dev')) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  return res;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const redirect = canonicalRedirect(url, request.method);
+    if (redirect) return redirect;
+    return withSiteHeaders(await route(request, env, ctx, url), url);
+  },
 
-    try {
-      if (url.pathname === '/api/chat/status' && request.method === 'GET') return json({ ready: !!env.AI });
-      if (url.pathname === '/api/chat' && request.method === 'POST') return await handleChat(request, env);
-      if (url.pathname === '/api/end-chat' && request.method === 'POST') return await handleEndChat(request, env, ctx);
-
-      if (url.pathname === '/api/leads' && request.method === 'GET') {
-        if (!env.LEADS_API_KEY || request.headers.get('X-Leads-Key') !== env.LEADS_API_KEY) {
-          return json({ error: 'Unauthorized' }, 401);
-        }
-        await ensureTable(env);
-        const { results } = await env.DB.prepare('SELECT * FROM lead_submissions ORDER BY created_at DESC LIMIT 200').all();
-        return json({ leads: results });
-      }
-
-      if (url.pathname === '/api/stt' && request.method === 'POST') {
-        const buf = await request.arrayBuffer();
-        if (!buf.byteLength || buf.byteLength > 5 * 1024 * 1024) return json({ error: 'Audio missing or too long.' }, 400);
-        const bytes = new Uint8Array(buf);
-        let bin = '';
-        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-        const out = await env.AI.run('@cf/openai/whisper-large-v3-turbo', { audio: btoa(bin), language: 'en' });
-        return json({ text: String(out?.text || '').trim().slice(0, 1500) });
-      }
-
-      if (url.pathname === '/api/tts' && request.method === 'POST') {
-        const { text } = await request.json();
-        const clean = String(text || '').slice(0, 1500);
-        const run = (model, speaker) => env.AI.run(model, { text: clean, speaker, encoding: 'mp3', container: 'none' }, { returnRawResponse: true });
-        let audio;
-        try { audio = await run('@cf/deepgram/aura-2-en', 'thalia'); if (!audio.ok) throw new Error('aura-2 status ' + audio.status); }
-        catch (e) { console.error('aura-2 failed, falling back to aura-1:', e); try { audio = await run('@cf/deepgram/aura-1', 'asteria'); } catch (e2) { return json({ error: 'Voice unavailable.', detail: `aura-2: ${String(e.message || e).slice(0, 150)} | aura-1: ${String(e2.message || e2).slice(0, 150)}` }, 502); } }
-        if (!audio.ok) return json({ error: 'Voice unavailable.', detail: `tts ${audio.status}: ${(await audio.text()).slice(0, 200)}` }, 502);
-        return new Response(audio.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
-      }
-    } catch (err) {
-      console.error('Request failed:', err);
-      return json({ error: 'Something went wrong. Please try again.' }, 500);
-    }
-
-    return env.ASSETS.fetch(request);
+  // Daily: delete chat leads older than the retention period stated on /privacy/.
+  async scheduled(event, env, ctx) {
+    await ensureTable(env);
+    const cutoff = new Date(Date.now() - LEAD_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const r = await env.DB.prepare('DELETE FROM lead_submissions WHERE created_at < ?').bind(cutoff).run();
+    console.log(`Retention cleanup: deleted ${r.meta?.changes ?? 0} lead(s) created before ${cutoff}`);
   },
 };
+
+async function route(request, env, ctx, url) {
+  try {
+    if (url.pathname === '/api/chat/status' && request.method === 'GET') return json({ ready: !!env.AI });
+    if (url.pathname === '/api/chat' && request.method === 'POST') return await handleChat(request, env);
+    if (url.pathname === '/api/end-chat' && request.method === 'POST') return await handleEndChat(request, env, ctx);
+
+    if (url.pathname === '/api/leads' && request.method === 'GET') {
+      if (!env.LEADS_API_KEY || request.headers.get('X-Leads-Key') !== env.LEADS_API_KEY) {
+        return json({ error: 'Unauthorized' }, 401);
+      }
+      await ensureTable(env);
+      const { results } = await env.DB.prepare('SELECT * FROM lead_submissions ORDER BY created_at DESC LIMIT 200').all();
+      return json({ leads: results });
+    }
+
+    if (url.pathname === '/api/stt' && request.method === 'POST') {
+      const buf = await request.arrayBuffer();
+      if (!buf.byteLength || buf.byteLength > 5 * 1024 * 1024) return json({ error: 'Audio missing or too long.' }, 400);
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      const out = await env.AI.run('@cf/openai/whisper-large-v3-turbo', { audio: btoa(bin), language: 'en' });
+      return json({ text: String(out?.text || '').trim().slice(0, 1500) });
+    }
+
+    if (url.pathname === '/api/tts' && request.method === 'POST') {
+      const { text } = await request.json();
+      const clean = String(text || '').slice(0, 1500);
+      const run = (model, speaker) => env.AI.run(model, { text: clean, speaker, encoding: 'mp3', container: 'none' }, { returnRawResponse: true });
+      let audio;
+      try { audio = await run('@cf/deepgram/aura-2-en', 'thalia'); if (!audio.ok) throw new Error('aura-2 status ' + audio.status); }
+      catch (e) { console.error('aura-2 failed, falling back to aura-1:', e); try { audio = await run('@cf/deepgram/aura-1', 'asteria'); } catch (e2) { return json({ error: 'Voice unavailable.', detail: `aura-2: ${String(e.message || e).slice(0, 150)} | aura-1: ${String(e2.message || e2).slice(0, 150)}` }, 502); } }
+      if (!audio.ok) return json({ error: 'Voice unavailable.', detail: `tts ${audio.status}: ${(await audio.text()).slice(0, 200)}` }, 502);
+      return new Response(audio.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
+    }
+  } catch (err) {
+    console.error('Request failed:', err);
+    return json({ error: 'Something went wrong. Please try again.' }, 500);
+  }
+
+  return env.ASSETS.fetch(request);
+}

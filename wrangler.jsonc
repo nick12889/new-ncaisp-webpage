@@ -5,6 +5,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "ai": { "binding": "AI" },
+  "triggers": { "crons": ["17 3 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -14,6 +15,9 @@
   ],
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // Run the Worker first so www/http redirects and security headers apply to every page.
+    "run_worker_first": true,
+    "not_found_handling": "404-page"
   }
 }

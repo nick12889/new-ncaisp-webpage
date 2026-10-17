@@ -67,7 +67,7 @@
  function close(){stopSpeaking();stopListening();panel.close();launch.focus()}
  launch.addEventListener('click',async()=>{panel.showModal();panel.querySelector('.chat-close').focus();try{const r=await fetch('/api/chat/status',{cache:'no-store'});if(!r.ok)throw Error();const data=await r.json();live=data.ready===true}catch{live=false}
   panel.querySelector('#chat-mode').textContent=live?'Aileen · AI assistant':'Aileen · Website guide';
-  panel.querySelector('#chat-disclosure').textContent=live?'Ask me about NCAISP and how AI could help your business.':'Choose a topic to explore our services. Free-text chat will be available once connected.';
+  {const d=panel.querySelector('#chat-disclosure');d.textContent=live?'Aileen is an AI assistant. Your chat and contact details are saved so our team can follow up. ':'Choose a topic to explore our services. Free-text chat will be available once connected.';if(live){const a=document.createElement('a');a.href='/privacy/';a.textContent='Privacy notice';d.append(a)}}
   status.textContent=live?'Ask about our capabilities, approach or use cases.':'Choose a topic above, or book a strategy session.';
   if(live&&history.length===0){const first=log.querySelector('.chat-message.assistant');if(first)first.textContent=GREETING;history=[{role:'assistant',content:GREETING}];all=[{role:'assistant',content:GREETING}]}
   controls()});
