@@ -32,7 +32,7 @@ Key facts:
 ## Company
 - [Home](https://ncaistrategypartners.com/): NCAI Strategy Partners helps businesses find where AI creates value, then builds, deploys and runs the systems: automation, custom AI agents and private AI.
 - [About NCAISP](https://ncaistrategypartners.com/about/): About NCAI Strategy Partners: one partner from AI opportunity discovery to managed operation, working with organisations in Ireland, the UK, the US and Canada.
-- [Industries](https://ncaistrategypartners.com/industries/): Illustrative AI applications for professional services, legal, healthcare and dental, home services, property and operations-led organisations.
+- [Industries](https://ncaistrategypartners.com/industries/): Illustrative AI applications for professional, financial and legal services, healthcare, government, home services, property and operations-led organisations.
 - [Use cases](https://ncaistrategypartners.com/use-cases/): 30 illustrative AI use cases across 10 business units, each with a business problem, a proposed workflow and clear human oversight.
 - [Insights](https://ncaistrategypartners.com/insights/): Practical guides: how to choose a first AI use case, how automation, AI agents and agentic systems differ, and what private or sovereign AI really means.
 
